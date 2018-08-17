@@ -18,6 +18,7 @@ package com.huaweicloud.dis.iface.transfertask.response;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.huaweicloud.dis.iface.stream.request.StreamDestinationType;
 import com.huaweicloud.dis.iface.transfertask.response.destination.*;
 
 import java.util.List;
@@ -40,6 +41,13 @@ public class DescribeTransferTaskResult {
      */
     @JsonProperty("task_name")
     private String transferTaskName;
+
+    /**
+     * <p>
+     * The destination type of the delivery task. For Example, OBS.
+     * </p>
+     */
+    private StreamDestinationType type;
 
     /**
      * <p>
@@ -199,5 +207,13 @@ public class DescribeTransferTaskResult {
 
     public void setCloudtableDestinationDescription(CloudtableDestinationDescription cloudtableDestinationDescription) {
         this.cloudtableDestinationDescription = cloudtableDestinationDescription;
+    }
+
+    public StreamDestinationType getType() {
+        return type;
+    }
+
+    public void setType(StreamDestinationType type) {
+        this.type = type;
     }
 }
