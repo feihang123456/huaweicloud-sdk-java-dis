@@ -41,6 +41,14 @@ public class DescribeTransferTaskResult {
      */
     @JsonProperty("task_name")
     private String transferTaskName;
+    
+     /**
+     * <p>
+     * The ID of the delivery task.
+     * </p>
+     */
+    @JsonProperty("task_id")
+    private String transferTaskId;
 
     /**
      * <p>
@@ -135,6 +143,16 @@ public class DescribeTransferTaskResult {
 
     public void setTransferTaskName(String transferTaskName) {
         this.transferTaskName = transferTaskName;
+    }
+    
+        public String getTransferTaskId()
+    {
+        return transferTaskId;
+    }
+    
+    public void setTransferTaskId(String transferTaskId)
+    {
+        this.transferTaskId = transferTaskId;
     }
 
     public long getCreateTime() {
