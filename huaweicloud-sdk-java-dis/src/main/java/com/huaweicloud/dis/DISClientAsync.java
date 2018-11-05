@@ -16,20 +16,7 @@
 
 package com.huaweicloud.dis;
 
-import com.huaweicloud.dis.core.handler.AsyncHandler;
-import com.huaweicloud.dis.core.util.StringUtils;
-import com.huaweicloud.dis.iface.app.request.ListAppsRequest;
-import com.huaweicloud.dis.iface.app.response.DescribeAppResult;
-import com.huaweicloud.dis.iface.app.response.ListAppsResult;
-import com.huaweicloud.dis.iface.data.request.*;
-import com.huaweicloud.dis.iface.data.response.*;
-import com.huaweicloud.dis.iface.stream.request.DescribeStreamRequest;
-import com.huaweicloud.dis.iface.stream.request.UpdatePartitionCountRequest;
-import com.huaweicloud.dis.iface.stream.response.DescribeStreamResult;
-import com.huaweicloud.dis.iface.stream.response.UpdatePartitionCountResult;
-import com.huaweicloud.dis.util.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -38,7 +25,46 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.huaweicloud.dis.core.handler.AsyncHandler;
+import com.huaweicloud.dis.core.util.StringUtils;
+import com.huaweicloud.dis.iface.app.request.ListAppsRequest;
+import com.huaweicloud.dis.iface.app.request.ListStreamConsumingStateRequest;
+import com.huaweicloud.dis.iface.app.response.DescribeAppResult;
+import com.huaweicloud.dis.iface.app.response.ListAppsResult;
+import com.huaweicloud.dis.iface.app.response.ListStreamConsumingStateResult;
+import com.huaweicloud.dis.iface.data.request.CommitCheckpointRequest;
+import com.huaweicloud.dis.iface.data.request.DeleteCheckpointRequest;
+import com.huaweicloud.dis.iface.data.request.GetCheckpointRequest;
+import com.huaweicloud.dis.iface.data.request.GetPartitionCursorRequest;
+import com.huaweicloud.dis.iface.data.request.GetRecordsRequest;
+import com.huaweicloud.dis.iface.data.request.PutFilesRequest;
+import com.huaweicloud.dis.iface.data.request.PutRecordsRequest;
+import com.huaweicloud.dis.iface.data.request.PutRecordsRequestEntry;
+import com.huaweicloud.dis.iface.data.request.PutRecordsRequestEntryExtendedInfo;
+import com.huaweicloud.dis.iface.data.request.QueryFileState;
+import com.huaweicloud.dis.iface.data.request.StreamType;
+import com.huaweicloud.dis.iface.data.response.CommitCheckpointResult;
+import com.huaweicloud.dis.iface.data.response.DeleteCheckpointResult;
+import com.huaweicloud.dis.iface.data.response.FileUploadResult;
+import com.huaweicloud.dis.iface.data.response.GetCheckpointResult;
+import com.huaweicloud.dis.iface.data.response.GetPartitionCursorResult;
+import com.huaweicloud.dis.iface.data.response.GetRecordsResult;
+import com.huaweicloud.dis.iface.data.response.PutFilesResult;
+import com.huaweicloud.dis.iface.data.response.PutRecordsResult;
+import com.huaweicloud.dis.iface.stream.request.CreateStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.DeleteStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.DescribeStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.ListStreamsRequest;
+import com.huaweicloud.dis.iface.stream.request.UpdatePartitionCountRequest;
+import com.huaweicloud.dis.iface.stream.response.CreateStreamResult;
+import com.huaweicloud.dis.iface.stream.response.DeleteStreamResult;
+import com.huaweicloud.dis.iface.stream.response.DescribeStreamResult;
+import com.huaweicloud.dis.iface.stream.response.ListStreamsResult;
+import com.huaweicloud.dis.iface.stream.response.UpdatePartitionCountResult;
+import com.huaweicloud.dis.util.IOUtils;
 
 public class DISClientAsync extends DISClient implements DISAsync
 {
@@ -48,6 +74,10 @@ public class DISClientAsync extends DISClient implements DISAsync
     private static final int DEFAULT_THREAD_POOL_SIZE = 100;
 
     private final java.util.concurrent.ExecutorService executorService;
+    
+    public DISClientAsync(DISConfig disConfig) {
+    	this(disConfig, null);
+    }
     
     /**
      * 构造异步DIS客户端
@@ -77,7 +107,7 @@ public class DISClientAsync extends DISClient implements DISAsync
         return submit(putRecordsParam, asyncHandler, new InnerExecutor<PutRecordsRequest, PutRecordsResult>()
         {
             public PutRecordsResult innerExecute(PutRecordsRequest putRecordsParam) {
-                return innerPutRecordsWithRetry(putRecordsParam);
+                return innerPutRecordsSupportingCache(putRecordsParam);
             };
         });
     }
@@ -236,13 +266,13 @@ public class DISClientAsync extends DISClient implements DISAsync
 
 
     @Override
-    public Future<ListAppsResult> listAppAsync(ListAppsRequest listAppsRequest)
+    public Future<ListAppsResult> listAppsAsync(ListAppsRequest listAppsRequest)
     {
-        return listAppAsync(listAppsRequest,null);
+        return listAppsAsync(listAppsRequest,null);
     }
 
     @Override
-    public Future<ListAppsResult> listAppAsync(ListAppsRequest listAppsRequest, AsyncHandler<ListAppsResult> asyncHandler)
+    public Future<ListAppsResult> listAppsAsync(ListAppsRequest listAppsRequest, AsyncHandler<ListAppsResult> asyncHandler)
     {
         return submit(listAppsRequest, asyncHandler, new InnerExecutor<ListAppsRequest, ListAppsResult>()
         {
@@ -452,7 +482,7 @@ public class DISClientAsync extends DISClient implements DISAsync
             @Override
             public void doWithRetry(PutRecordsRequest request, int maxRetries, long maxDelay)
             {
-                PutRecordsResult putRecordsResult = innerPutRecordsWithRetry(putRecordsRequest);
+                PutRecordsResult putRecordsResult = innerPutRecordsSupportingCache(putRecordsRequest);
                 
                 if (putRecordsResult.getFailedRecordCount().intValue() > 0)
                 {
@@ -590,5 +620,88 @@ public class DISClientAsync extends DISClient implements DISAsync
          */
         void doWithRetry(REQUEST request, int maxRetries, long maxDelay);
     }
+
+	@Override
+	public Future<CreateStreamResult> createStreamAsync(CreateStreamRequest createStreamRequest) {
+		return createStreamAsync(createStreamRequest, null);
+	}
+
+	@Override
+	public Future<CreateStreamResult> createStreamAsync(CreateStreamRequest createStreamRequest,
+			AsyncHandler<CreateStreamResult> asyncHandler) {
+		
+        return submit(createStreamRequest, asyncHandler, new InnerExecutor<CreateStreamRequest, CreateStreamResult>()
+        {
+            public CreateStreamResult innerExecute(CreateStreamRequest createStreamRequest) {
+                return innerCreateStream(createStreamRequest);
+            };
+        });
+	}
+
+	@Override
+	public Future<DeleteStreamResult> deleteStreamAsync(DeleteStreamRequest deleteStreamRequest) {
+		return deleteStreamAsync(deleteStreamRequest, null);
+	}
+
+	@Override
+	public Future<DeleteStreamResult> deleteStreamAsync(DeleteStreamRequest deleteStreamRequest,
+			AsyncHandler<DeleteStreamResult> asyncHandler) {
+		return submit(deleteStreamRequest, asyncHandler, new InnerExecutor<DeleteStreamRequest, DeleteStreamResult>()
+        {
+            public DeleteStreamResult innerExecute(DeleteStreamRequest deleteStreamRequest) {
+                return innerDeleteStream(deleteStreamRequest);
+            };
+        });
+	}
+
+	@Override
+	public Future<ListStreamsResult> listStreamsAsync(ListStreamsRequest listStreamsRequest) {
+		return listStreamsAsync(listStreamsRequest, null);
+	}
+
+	@Override
+	public Future<ListStreamsResult> listStreamsAsync(ListStreamsRequest listStreamsRequest,
+			AsyncHandler<ListStreamsResult> asyncHandler) {
+		return submit(listStreamsRequest, asyncHandler, new InnerExecutor<ListStreamsRequest, ListStreamsResult>()
+        {
+            public ListStreamsResult innerExecute(ListStreamsRequest listStreamsRequest) {
+                return innerListStreams(listStreamsRequest);
+            };
+        });
+	}
+
+	@Override
+	public Future<DeleteCheckpointResult> deleteCheckpointAsync(DeleteCheckpointRequest deleteCheckpointRequest) {
+		return deleteCheckpointAsync(deleteCheckpointRequest, null);
+	}
+
+	@Override
+	public Future<DeleteCheckpointResult> deleteCheckpointAsync(DeleteCheckpointRequest deleteCheckpointRequest,
+			AsyncHandler<DeleteCheckpointResult> asyncHandler) {
+		return submit(deleteCheckpointRequest, asyncHandler, new InnerExecutor<DeleteCheckpointRequest, DeleteCheckpointResult>()
+        {
+            public DeleteCheckpointResult innerExecute(DeleteCheckpointRequest deleteCheckpointRequest) {
+                return innerDeleteCheckpoint(deleteCheckpointRequest);
+            };
+        });
+	}
+
+	@Override
+	public Future<ListStreamConsumingStateResult> listStreamConsumingStateAsync(
+			ListStreamConsumingStateRequest listStreamConsumingStateRequest) {
+		return listStreamConsumingStateAsync(listStreamConsumingStateRequest, null);
+	}
+
+	@Override
+	public Future<ListStreamConsumingStateResult> listStreamConsumingStateAsync(
+			ListStreamConsumingStateRequest listStreamConsumingStateRequest,
+			AsyncHandler<ListStreamConsumingStateResult> asyncHandler) {
+		return submit(listStreamConsumingStateRequest, asyncHandler, new InnerExecutor<ListStreamConsumingStateRequest, ListStreamConsumingStateResult>()
+        {
+            public ListStreamConsumingStateResult innerExecute(ListStreamConsumingStateRequest listStreamConsumingStateRequest) {
+                return innerListStreamConsumingState(listStreamConsumingStateRequest);
+            };
+        });
+	}
     
 }

@@ -16,76 +16,62 @@
 
 package com.huaweicloud.dis;
 
-import com.huaweicloud.dis.DISConfig.BodySerializeType;
-import com.huaweicloud.dis.core.DISCredentials;
-import com.huaweicloud.dis.core.DefaultRequest;
-import com.huaweicloud.dis.core.Request;
-import com.huaweicloud.dis.core.http.HttpMethodName;
-import com.huaweicloud.dis.core.restresource.*;
-import com.huaweicloud.dis.core.util.StringUtils;
-import com.huaweicloud.dis.exception.DISClientException;
-import com.huaweicloud.dis.iface.api.protobuf.ProtobufUtils;
-import com.huaweicloud.dis.iface.app.request.CreateAppRequest;
-import com.huaweicloud.dis.iface.app.request.ListAppsRequest;
-import com.huaweicloud.dis.iface.app.response.DescribeAppResult;
-import com.huaweicloud.dis.iface.app.response.ListAppsResult;
-import com.huaweicloud.dis.iface.data.request.*;
-import com.huaweicloud.dis.iface.data.response.*;
-import com.huaweicloud.dis.iface.stream.request.*;
-import com.huaweicloud.dis.iface.stream.response.*;
-import com.huaweicloud.dis.util.ExponentialBackOff;
-import com.huaweicloud.dis.util.RestClientWrapper;
-import com.huaweicloud.dis.util.SnappyUtils;
-import com.huaweicloud.dis.util.Utils;
-import com.huaweicloud.dis.util.config.ICredentialsProvider;
-import com.huaweicloud.dis.util.encrypt.EncryptUtils;
-import org.apache.http.HttpRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class DISClient implements DIS
+import com.huaweicloud.dis.iface.app.request.ListStreamConsumingStateRequest;
+import com.huaweicloud.dis.iface.app.response.ListStreamConsumingStateResult;
+import com.huaweicloud.dis.iface.data.request.*;
+import com.huaweicloud.dis.iface.data.response.*;
+import org.apache.http.HttpRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.huaweicloud.dis.DISConfig.BodySerializeType;
+import com.huaweicloud.dis.core.DefaultRequest;
+import com.huaweicloud.dis.core.Request;
+import com.huaweicloud.dis.core.http.HttpMethodName;
+import com.huaweicloud.dis.core.restresource.AppsResource;
+import com.huaweicloud.dis.core.restresource.CheckPointResource;
+import com.huaweicloud.dis.core.restresource.CursorResource;
+import com.huaweicloud.dis.core.restresource.FileResource;
+import com.huaweicloud.dis.core.restresource.RecordResource;
+import com.huaweicloud.dis.core.restresource.ResourcePathBuilder;
+import com.huaweicloud.dis.core.restresource.StateResource;
+import com.huaweicloud.dis.core.restresource.StreamResource;
+import com.huaweicloud.dis.core.util.StringUtils;
+import com.huaweicloud.dis.http.AbstractDISClient;
+import com.huaweicloud.dis.iface.api.protobuf.ProtobufUtils;
+import com.huaweicloud.dis.iface.app.request.CreateAppRequest;
+import com.huaweicloud.dis.iface.app.request.ListAppsRequest;
+import com.huaweicloud.dis.iface.app.response.DescribeAppResult;
+import com.huaweicloud.dis.iface.app.response.ListAppsResult;
+import com.huaweicloud.dis.iface.stream.request.CreateStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.DeleteStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.DescribeStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.ListStreamsRequest;
+import com.huaweicloud.dis.iface.stream.request.UpdatePartitionCountRequest;
+import com.huaweicloud.dis.iface.stream.response.CreateStreamResult;
+import com.huaweicloud.dis.iface.stream.response.DeleteStreamResult;
+import com.huaweicloud.dis.iface.stream.response.DescribeStreamResult;
+import com.huaweicloud.dis.iface.stream.response.ListStreamsResult;
+import com.huaweicloud.dis.iface.stream.response.UpdatePartitionCountResult;
+import com.huaweicloud.dis.util.ExponentialBackOff;
+import com.huaweicloud.dis.util.cache.CacheManager;
+import com.huaweicloud.dis.util.cache.CacheUtils;
+
+public class DISClient extends AbstractDISClient implements DIS
 {
     private static final Logger LOG = LoggerFactory.getLogger(DISClient.class);
 
-    protected static final String HTTP_X_PROJECT_ID = "X-Project-Id";
-
-    protected static final String HTTP_X_SECURITY_TOKEN = "X-Security-Token";
-
-    protected String region;
-    
-    protected DISConfig disConfig;
-    
-    protected DISCredentials credentials;
-    
     protected ReentrantLock recordsRetryLock = new ReentrantLock();
-    
-    protected ICredentialsProvider credentialsProvider;
     
     public DISClient(DISConfig disConfig)
     {
-        this.disConfig = DISConfig.buildConfig(disConfig);
-        this.credentials = new DISCredentials(this.disConfig);
-        this.region = this.disConfig.getRegion();
-        check();
-        initCredentialsProvider();
+        super(disConfig);
     }
     
     /**
@@ -93,17 +79,55 @@ public class DISClient implements DIS
      */
     public DISClient()
     {
-        this.disConfig = DISConfig.buildDefaultConfig();
-        this.credentials = new DISCredentials(this.disConfig);
-        this.region = disConfig.getRegion();
-        check();
-        initCredentialsProvider();
+    	super();
     }    
     
     @Override
     public PutRecordsResult putRecords(PutRecordsRequest putRecordsParam)
     {
-        return innerPutRecordsWithRetry(putRecordsParam);
+        return innerPutRecordsSupportingCache(putRecordsParam);
+    }
+    
+    protected PutRecordsResult innerPutRecordsSupportingCache(PutRecordsRequest putRecordsParam)
+    {
+        if (disConfig.isDataCacheEnabled())
+        {
+            // 开启本地缓存
+            PutRecordsResult putRecordsResult = null;
+            try
+            {
+                putRecordsResult = innerPutRecordsWithRetry(putRecordsParam);
+                // 部分记录上传失败
+                if (putRecordsResult.getFailedRecordCount().get() > 0)
+                {
+                    // 过滤出上传失败的记录
+                    List<PutRecordsResultEntry> putRecordsResultEntries = putRecordsResult.getRecords();
+                    List<PutRecordsRequestEntry> failedPutRecordsRequestEntries = new ArrayList<>();
+                    int index = 0;
+                    for (PutRecordsResultEntry putRecordsResultEntry : putRecordsResultEntries)
+                    {
+                        if (!StringUtils.isNullOrEmpty(putRecordsResultEntry.getErrorCode()))
+                        {
+                            failedPutRecordsRequestEntries.add(putRecordsParam.getRecords().get(index));
+                        }
+                        index++;
+                    }
+                    putRecordsParam.setRecords(failedPutRecordsRequestEntries);
+                    CacheUtils.putToCache(putRecordsParam, disConfig); // 写入本地缓存
+                }
+            }
+            catch (Exception e)
+            {
+                // 网络异常
+                CacheUtils.putToCache(putRecordsParam, disConfig); // 写入本地缓存
+                throw e;
+            }
+            return putRecordsResult;
+        }
+        else
+        {
+            return innerPutRecordsWithRetry(putRecordsParam);
+        }
     }
 
     protected PutRecordsResult innerPutRecordsWithRetry(PutRecordsRequest putRecordsParam)
@@ -115,6 +139,7 @@ public class DISClient implements DIS
         
         int retryCount = -1;
         int currentFailed = 0;
+        int noRetryRecordsCount = 0;
         ExponentialBackOff backOff = null;
         try
         {
@@ -202,11 +227,19 @@ public class DISClient implements DIS
                         // 获取重试数据在原始数据中的下标位置
                         int originalIndex = retryIndex == null ? i : retryIndex[i];
                         PutRecordsResultEntry putRecordsResultEntry = putRecordsResult.getRecords().get(i);
-                        // 对所有异常进行重试 && "DIS.4303".equals(putRecordsResultEntry.getErrorCode())
+
                         if (!StringUtils.isNullOrEmpty(putRecordsResultEntry.getErrorCode()))
                         {
-                            retryIndexTemp.add(originalIndex);
-                            retryPutRecordsRequest.getRecords().add(putRecordsParam.getRecords().get(originalIndex));
+                            // 只对指定异常(如流控与服务端内核异常)进行重试
+                            if (isRecordsRetriableErrorCode(putRecordsResultEntry.getErrorCode()))
+                            {
+                                retryIndexTemp.add(originalIndex);
+                                retryPutRecordsRequest.getRecords().add(putRecordsParam.getRecords().get(originalIndex));
+                            }
+                            else
+                            {
+                                noRetryRecordsCount++;
+                            }
                         }
                         putRecordsResultEntryList[originalIndex] = putRecordsResultEntry;
                     }
@@ -231,7 +264,7 @@ public class DISClient implements DIS
         }
         else
         {
-            putRecordsResult.setFailedRecordCount(new AtomicInteger(retryIndex.length));
+            putRecordsResult.setFailedRecordCount(new AtomicInteger(retryIndex.length + noRetryRecordsCount));
             putRecordsResult.setRecords(Arrays.asList(putRecordsResultEntryList));
         }
         
@@ -335,227 +368,15 @@ public class DISClient implements DIS
         return decorateRecords(result);
     }
     
-    /**
-     * Decorate {@link PutRecordsRequest} before sending HTTP Request.
-     * 
-     * @param putRecordsParam A <code>PutRecords</code> request.
-     * @return A <code>PutRecords</code> request after decorating.
-     */
-    private PutRecordsRequest decorateRecords(PutRecordsRequest putRecordsParam)
-    {
-        // compress with snappy-java
-        if (disConfig.isDataCompressEnabled())
-        {
-            if (putRecordsParam.getRecords() != null)
-            {
-                for (PutRecordsRequestEntry record : putRecordsParam.getRecords())
-                {
-                    byte[] input = record.getData().array();
-                    try
-                    {
-                        byte[] compressedInput = SnappyUtils.compress(input);
-                        record.setData(ByteBuffer.wrap(compressedInput));
-                    }
-                    catch (IOException e)
-                    {
-                        LOG.error(e.getMessage(), e);
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        }
-        
-        // encrypt
-        if (isEncrypt())
-        {
-            if (putRecordsParam.getRecords() != null)
-            {
-                for (PutRecordsRequestEntry record : putRecordsParam.getRecords())
-                {
-                    record.setData(encrypt(record.getData()));
-                }
-            }
-        }
-        
-        return putRecordsParam;
-    }
-    
-    /**
-     * Decorate {@link GetRecordsResult} after getting HTTP Response.
-     * 
-     * @param getRecordsResult A <code>GetRecords</code> response.
-     * @return A <code>GetRecords</code> response after decorating.
-     */
-    private GetRecordsResult decorateRecords(GetRecordsResult getRecordsResult)
-    {
-        // decrypt
-        if (isEncrypt())
-        {
-            if (getRecordsResult.getRecords() != null)
-            {
-                for (Record record : getRecordsResult.getRecords())
-                {
-                    record.setData(decrypt(record.getData()));
-                }
-            }
-        }
-        
-        // uncompress with snappy-java
-        if (disConfig.isDataCompressEnabled())
-        {
-            if (getRecordsResult.getRecords() != null)
-            {
-                for (Record record : getRecordsResult.getRecords())
-                {
-                    byte[] input = record.getData().array();
-                    try
-                    {
-                        byte[] uncompressedInput = SnappyUtils.uncompress(input);
-                        record.setData(ByteBuffer.wrap(uncompressedInput));
-                    }
-                    catch (IOException e)
-                    {
-                        LOG.error(e.getMessage(), e);
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        }
-        
-        return getRecordsResult;
-    }
-    
-    private boolean isEncrypt()
-    {
-        return disConfig.getIsDefaultDataEncryptEnabled() && !StringUtils.isNullOrEmpty(disConfig.getDataPassword());
-    }
-    
-    private ByteBuffer encrypt(ByteBuffer src)
-    {
-        String cipher = null;
-        try
-        {
-            cipher = EncryptUtils.gen(new String[] {disConfig.getDataPassword()}, src.array());
-        }
-        catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException
-            | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e)
-        {
-            LOG.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        return ByteBuffer.wrap(cipher.getBytes());
-    }
-    
-    private ByteBuffer decrypt(ByteBuffer cipher)
-    {
-        Charset utf8 = Charset.forName("UTF-8");
-        String src;
-        try
-        {
-            src = EncryptUtils.dec(new String[] {disConfig.getDataPassword()}, new String(cipher.array(), utf8));
-        }
-        catch (InvalidKeyException | NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException
-            | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e)
-        {
-            LOG.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        
-        return ByteBuffer.wrap(src.getBytes(utf8));
-    }
-    
-    // protected <T> T request(Object param, Object target, Class<T> clazz){
-    // check();
-    //
-    // String result = new RestClientWrapper(new DefaultRequest<>(Constants.SERVICENAME), disConfig).request(param,
-    // credentials.getAccessKeyId(), credentials.getSecretKey(), region);
-    // return JsonUtils.jsonToObj(result, clazz);
-    // }
-
-    protected <T> T request(Object param, Request<HttpRequest> request, Class<T> clazz)
-    {
-        DISCredentials credentials = this.credentials;
-        if (credentialsProvider != null)
-        {
-            DISCredentials cloneCredentials = this.credentials.clone();
-            credentials = credentialsProvider.updateCredentials(cloneCredentials);
-            if (credentials != cloneCredentials)
-            {
-                this.credentials = credentials;
-            }
-        }
-        
-        request.addHeader(HTTP_X_PROJECT_ID, disConfig.getProjectId());
-        
-        String securityToken = credentials.getSecurityToken();
-        if (!StringUtils.isNullOrEmpty(securityToken))
-        {
-            request.addHeader(HTTP_X_SECURITY_TOKEN, securityToken);
-        }
-        
-        // 发送请求
-        return new RestClientWrapper(request, disConfig)
-            .request(param, credentials.getAccessKeyId(), credentials.getSecretKey(), region, clazz);
-    }
-    
-    private void check()
-    {
-        if (credentials == null)
-        {
-            throw new DISClientException("credentials can not be null.");
-        }
-        
-        if (StringUtils.isNullOrEmpty(credentials.getAccessKeyId()))
-        {
-            throw new DISClientException("credentials ak can not be null.");
-        }
-        
-        if (StringUtils.isNullOrEmpty(credentials.getSecretKey()))
-        {
-            throw new DISClientException("credentials sk can not be null.");
-        }
-        
-        if (StringUtils.isNullOrEmpty(region))
-        {
-            throw new DISClientException("region can not be null.");
-        }
-        
-        if (StringUtils.isNullOrEmpty(disConfig.getProjectId()))
-        {
-            throw new RuntimeException("project id can not be null.");
-        }
-        
-        String endpoint = disConfig.getEndpoint();
-        if (StringUtils.isNullOrEmpty(endpoint))
-        {
-            throw new DISClientException("endpoint can not be null.");
-        }
-        if (!Utils.isValidEndpoint(endpoint))
-        {
-            throw new DISClientException("invalid endpoint.");
-        }
-    }
-    
-    private void setEndpoint(Request<HttpRequest> request, String endpointStr)
-    {
-        URI endpoint;
-        try
-        {
-            endpoint = new URI(endpointStr);
-        }
-        catch (URISyntaxException e)
-        {
-            throw new RuntimeException(e);
-        }
-        
-        request.setEndpoint(endpoint);
-    }
-    
     // ###################### delegate IStreamService #########################
     @Override
     public CreateStreamResult createStream(CreateStreamRequest createStreamRequest)
     {
-        Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
+        return innerCreateStream(createStreamRequest);
+    }
+    
+    protected final CreateStreamResult innerCreateStream(CreateStreamRequest createStreamRequest) {
+    	Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
         request.setHttpMethod(HttpMethodName.POST);
         
         final String resourcePath =
@@ -570,7 +391,6 @@ public class DISClient implements DIS
         
         return result;
     }
-    
     
     @Override
     public DescribeStreamResult describeStream(DescribeStreamRequest describeStreamRequest)
@@ -623,6 +443,11 @@ public class DISClient implements DIS
     @Override
     public DeleteStreamResult deleteStream(DeleteStreamRequest deleteStreamRequest)
     {
+    	return innerDeleteStream(deleteStreamRequest);
+    }
+    
+    protected final DeleteStreamResult innerDeleteStream(DeleteStreamRequest deleteStreamRequest)
+    {
         Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
         request.setHttpMethod(HttpMethodName.DELETE);
         
@@ -642,6 +467,11 @@ public class DISClient implements DIS
     @Override
     public ListStreamsResult listStreams(ListStreamsRequest listStreamsRequest)
     {
+    	return innerListStreams(listStreamsRequest);
+    }
+ 
+    protected final ListStreamsResult innerListStreams(ListStreamsRequest listStreamsRequest)
+    {
         Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
         request.setHttpMethod(HttpMethodName.GET);
         
@@ -657,8 +487,6 @@ public class DISClient implements DIS
         ListStreamsResult result = request(listStreamsRequest, request, ListStreamsResult.class);
         return result;
     }
- 
-    
     
     
     
@@ -670,46 +498,7 @@ public class DISClient implements DIS
     @Override
     public PutRecordResult putRecord(PutRecordRequest putRecordParam)
     {
-        if (isEncrypt())
-        {
-            putRecordParam.setData(encrypt(putRecordParam.getData()));
-        }
-        
         return toPutRecordResult(putRecords(toPutRecordsRequest(putRecordParam)));
-    }
-    
-    private PutRecordsRequest toPutRecordsRequest(PutRecordRequest putRecordRequest)
-    {
-        PutRecordsRequest putRecordsRequest = new PutRecordsRequest();
-        putRecordsRequest.setStreamName(putRecordRequest.getStreamName());
-        
-        List<PutRecordsRequestEntry> putRecordsRequestEntryList = new ArrayList<PutRecordsRequestEntry>();
-        PutRecordsRequestEntry putRecordsRequestEntry = new PutRecordsRequestEntry();
-        putRecordsRequestEntry.setData(putRecordRequest.getData());
-        putRecordsRequestEntry.setPartitionKey(putRecordRequest.getPartitionKey());
-        putRecordsRequestEntry.setTimestamp(putRecordRequest.getTimestamp());
-        putRecordsRequestEntryList.add(putRecordsRequestEntry);
-        
-        putRecordsRequest.setRecords(putRecordsRequestEntryList);
-        
-        return putRecordsRequest;
-    }
-    
-    private PutRecordResult toPutRecordResult(PutRecordsResult putRecordsResult)
-    {
-        if (null != putRecordsResult && null != putRecordsResult.getRecords() && putRecordsResult.getRecords().size() > 0)
-        {
-            List<PutRecordsResultEntry> records = putRecordsResult.getRecords();
-            PutRecordsResultEntry record = records.get(0);
-            
-            PutRecordResult result = new PutRecordResult();
-            result.setPartitionId(record.getPartitionId());
-            result.setSequenceNumber(record.getSequenceNumber());
-            
-            return result;
-        }
-        
-        return null;
     }
 
     /*
@@ -849,26 +638,43 @@ public class DISClient implements DIS
         setEndpoint(request, disConfig.getEndpoint());
         return request(getCheckpointRequest, request, GetCheckpointResult.class);
     }
-    
-    /**
-     * 开放认证修改接口，用户自定义实现ICredentialsProvider，更新认证信息
-     */
-    private void initCredentialsProvider()
+
+
+    public DeleteCheckpointResult deleteCheckpoint(DeleteCheckpointRequest deleteCheckpointRequest)
     {
-        // Provider转换
-        String credentialsProviderClass = disConfig.get(DISConfig.PROPERTY_CONFIG_PROVIDER_CLASS, null);
-        if (!StringUtils.isNullOrEmpty(credentialsProviderClass))
-        {
-            try
-            {
-                this.credentialsProvider = (ICredentialsProvider)Class.forName(credentialsProviderClass).newInstance();
-                this.credentials = credentialsProvider.updateCredentials(this.credentials.clone());
-            }
-            catch (Exception e)
-            {
-                throw new IllegalArgumentException("Failed to call ICredentialsProvider[" + credentialsProviderClass
-                    + "], error [" + e.toString() + "]", e);
-            }
-        }
+        return innerDeleteCheckpoint(deleteCheckpointRequest);
+    }
+
+    protected final DeleteCheckpointResult innerDeleteCheckpoint(DeleteCheckpointRequest deleteCheckpointRequest)
+    {
+        Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
+        request.setHttpMethod(HttpMethodName.DELETE);
+
+        final String resourcePath = ResourcePathBuilder.standard()
+                .withProjectId(disConfig.getProjectId())
+                .withResource(new CheckPointResource(null))
+                .build();
+        request.setResourcePath(resourcePath);
+        setEndpoint(request, disConfig.getEndpoint());
+        return request(deleteCheckpointRequest, request, DeleteCheckpointResult.class);
+    }
+
+    @Override
+    public ListStreamConsumingStateResult listStreamConsumingState(ListStreamConsumingStateRequest listStreamConsumingStateRequest) {
+        return innerListStreamConsumingState(listStreamConsumingStateRequest);
+    }
+
+    protected ListStreamConsumingStateResult innerListStreamConsumingState(ListStreamConsumingStateRequest listStreamConsumingStateRequest) {
+        Request<HttpRequest> request = new DefaultRequest<>(Constants.SERVICENAME);
+        request.setHttpMethod(HttpMethodName.GET);
+
+        final String resourcePath = ResourcePathBuilder.standard()
+                .withProjectId(disConfig.getProjectId())
+                .withResource(new AppsResource(listStreamConsumingStateRequest.getAppName()))
+                .withResource(new StreamResource(listStreamConsumingStateRequest.getStreamName()))
+                .build();
+        request.setResourcePath(resourcePath);
+        setEndpoint(request, disConfig.getManagerEndpoint());
+        return request(listStreamConsumingStateRequest, request, ListStreamConsumingStateResult.class);
     }
 }

@@ -41,8 +41,8 @@ public class DescribeTransferTaskResult {
      */
     @JsonProperty("task_name")
     private String transferTaskName;
-    
-     /**
+
+    /**
      * <p>
      * The ID of the delivery task.
      * </p>
@@ -55,15 +55,16 @@ public class DescribeTransferTaskResult {
      * The destination type of the delivery task. For Example, OBS.
      * </p>
      */
-    private StreamDestinationType type;
+    @JsonProperty("destination_type")
+    private StreamDestinationType destinationType;
 
     /**
      * <p>
      * The transfer state of the delivery task.
      * </p>
      */
-    @JsonProperty("transfer_state")
-    private String transferState;
+    @JsonProperty("state")
+    private String state;
 
 
     /**
@@ -144,14 +145,12 @@ public class DescribeTransferTaskResult {
     public void setTransferTaskName(String transferTaskName) {
         this.transferTaskName = transferTaskName;
     }
-    
-        public String getTransferTaskId()
-    {
+
+    public String getTransferTaskId() {
         return transferTaskId;
     }
-    
-    public void setTransferTaskId(String transferTaskId)
-    {
+
+    public void setTransferTaskId(String transferTaskId) {
         this.transferTaskId = transferTaskId;
     }
 
@@ -171,12 +170,12 @@ public class DescribeTransferTaskResult {
         this.lastTransferTimeStamp = lastTransferTimeStamp;
     }
 
-    public String getTransferState() {
-        return transferState;
+    public String getState() {
+        return state;
     }
 
-    public void setTransferState(String transferState) {
-        this.transferState = transferState;
+    public void setState(String state) {
+        this.state = state;
     }
 
     public List<PartitionTransferResult> getPartitions() {
@@ -227,11 +226,11 @@ public class DescribeTransferTaskResult {
         this.cloudtableDestinationDescription = cloudtableDestinationDescription;
     }
 
-    public StreamDestinationType getType() {
-        return type;
+    public StreamDestinationType getDestinationType() {
+        return destinationType;
     }
 
-    public void setType(StreamDestinationType type) {
-        this.type = type;
+    public void setDestinationType(StreamDestinationType destinationType) {
+        this.destinationType = destinationType;
     }
 }

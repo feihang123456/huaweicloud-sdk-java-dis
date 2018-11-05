@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.HttpEntity;
@@ -36,16 +35,20 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.*;
+import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.LayeredConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLContexts;
 import org.apache.http.conn.ssl.TrustStrategy;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -62,6 +65,7 @@ import com.huaweicloud.dis.http.DefaultResponseErrorHandler;
 import com.huaweicloud.dis.http.HttpMessageConverterExtractor;
 import com.huaweicloud.dis.http.ResponseErrorHandler;
 import com.huaweicloud.dis.http.ResponseExtractor;
+import com.huaweicloud.dis.http.SdkProxyRoutePlanner;
 import com.huaweicloud.dis.http.converter.ByteArrayHttpMessageConverter;
 import com.huaweicloud.dis.http.converter.HttpMessageConverter;
 import com.huaweicloud.dis.http.converter.StringHttpMessageConverter;
@@ -359,7 +363,7 @@ public class RestClient
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.<ConnectionSocketFactory> create();
         registryBuilder.register("http", new PlainConnectionSocketFactory());
 
-        HostnameVerifier verifier = null;
+        X509HostnameVerifier verifier = null;
         // 指定信任密钥存储对象和连接套接字工厂
         try
         {
@@ -385,7 +389,7 @@ public class RestClient
                     }
                 };
                 sslContext = SSLContexts.custom().useTLS().loadTrustMaterial(trustStore, anyTrustStrategy).build();
-                verifier = NoopHostnameVerifier.INSTANCE;
+                verifier = SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER;
             }
             
             LayeredConnectionSocketFactory sslSF = new SSLConnectionSocketFactory(sslContext,
@@ -418,7 +422,17 @@ public class RestClient
             // }
             // }
         }
-        RequestConfig requestConfig = RequestConfig.custom().setSocketTimeout(disConfig.getSocketTimeOut()).setConnectTimeout(disConfig.getConnectionTimeOut()).build();
+        RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
+//        if (disConfig.isProxyEnabled() && disConfig.isAuthenticatedProxy())
+//        {
+//            List<String> apacheAuthenticationSchemes = new ArrayList<>();
+//            apacheAuthenticationSchemes.add(AuthSchemes.NTLM);
+//            apacheAuthenticationSchemes.add(AuthSchemes.BASIC);
+//            apacheAuthenticationSchemes.add(AuthSchemes.DIGEST);
+//            
+//            requestConfigBuilder.setProxyPreferredAuthSchemes(apacheAuthenticationSchemes);
+//        }
+        RequestConfig requestConfig = requestConfigBuilder.setSocketTimeout(disConfig.getSocketTimeOut()).setConnectTimeout(disConfig.getConnectionTimeOut()).build();
         Registry<ConnectionSocketFactory> registry = registryBuilder.build();
         // 设置连接管理器
         PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(registry);
@@ -428,8 +442,32 @@ public class RestClient
         // connManager.setDefaultSocketConfig(socketConfig);
         
         // 构建客户端
-        return HttpClientBuilder.create()
-            .setConnectionManager(connManager)
+        HttpClientBuilder httpClientBuilder = HttpClientBuilder.create();
+        if (disConfig.isProxyEnabled())
+        {
+            logger.info("Configuring Proxy. Proxy Host: {}, Proxy Port: {}.",
+                disConfig.getProxyHost(),
+                disConfig.getProxyPort());
+            
+            httpClientBuilder.setRoutePlanner(new SdkProxyRoutePlanner(disConfig.getProxyHost(),
+                disConfig.getProxyPort(), disConfig.getProxyProtocol(), disConfig.getNonProxyHosts()));
+            
+            if (disConfig.isAuthenticatedProxy())
+            {
+                httpClientBuilder.setDefaultCredentialsProvider(ApacheUtils.newProxyCredentialsProvider(disConfig));
+            }
+        }
+//        Registry<AuthSchemeProvider> authSchemeRegistry =
+//            RegistryBuilder.<AuthSchemeProvider> create()
+//                .register(AuthSchemes.NTLM, new NTLMSchemeFactory())
+//                .register(AuthSchemes.BASIC, new BasicSchemeFactory())
+//                .register(AuthSchemes.DIGEST, new DigestSchemeFactory())
+//                .register(AuthSchemes.SPNEGO, new SPNegoSchemeFactory())
+//                .register(AuthSchemes.KERBEROS, new KerberosSchemeFactory())
+//                .build();
+//        httpClientBuilder.setDefaultAuthSchemeRegistry(authSchemeRegistry);
+        
+        return httpClientBuilder.setConnectionManager(connManager)
             .setRetryHandler(new HttpRequestRetryHandler(3, true))
             .setDefaultRequestConfig(requestConfig)
             .build();

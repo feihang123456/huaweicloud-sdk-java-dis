@@ -21,6 +21,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import java.util.Map;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OBSDestinationDescriptorRequest
@@ -118,6 +120,22 @@ public class OBSDestinationDescriptorRequest
      */
     @JsonProperty("data_schema_path")
     private String dataSchemaPath;
+
+    /**
+     * <p>
+     * CarbonWriter.builder.withTableProperties(tablePropertiesMap)
+     * </p>
+     */
+    @JsonProperty("carbon_properties")
+    private Map<String, String> carbonProperties;
+
+    /**
+     * <p>
+     * 数据转换的schema配置:如支持parquet按照指定timestamp生成分区目录
+     * </p>
+     */
+    @JsonProperty("processing_schema")
+    private ProcessingSchema processingSchema;
     
     /**
      * <p>
@@ -253,5 +271,21 @@ public class OBSDestinationDescriptorRequest
 
     public void setConsumerStrategy(String consumerStrategy) {
         this.consumerStrategy = consumerStrategy;
+    }
+
+    public Map<String, String> getCarbonProperties() {
+        return carbonProperties;
+    }
+
+    public void setCarbonProperties(Map<String, String> carbonProperties) {
+        this.carbonProperties = carbonProperties;
+    }
+
+    public ProcessingSchema getProcessingSchema() {
+        return processingSchema;
+    }
+
+    public void setProcessingSchema(ProcessingSchema processingSchema) {
+        this.processingSchema = processingSchema;
     }
 }

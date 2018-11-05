@@ -16,15 +16,25 @@
 
 package com.huaweicloud.dis;
 
+import java.util.concurrent.Future;
+
 import com.huaweicloud.dis.core.handler.AsyncHandler;
 import com.huaweicloud.dis.iface.app.request.ListAppsRequest;
+import com.huaweicloud.dis.iface.app.request.ListStreamConsumingStateRequest;
 import com.huaweicloud.dis.iface.app.response.DescribeAppResult;
 import com.huaweicloud.dis.iface.app.response.ListAppsResult;
+import com.huaweicloud.dis.iface.app.response.ListStreamConsumingStateResult;
 import com.huaweicloud.dis.iface.data.request.*;
 import com.huaweicloud.dis.iface.data.response.*;
+import com.huaweicloud.dis.iface.stream.request.CreateStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.DeleteStreamRequest;
 import com.huaweicloud.dis.iface.stream.request.DescribeStreamRequest;
+import com.huaweicloud.dis.iface.stream.request.ListStreamsRequest;
 import com.huaweicloud.dis.iface.stream.request.UpdatePartitionCountRequest;
+import com.huaweicloud.dis.iface.stream.response.CreateStreamResult;
+import com.huaweicloud.dis.iface.stream.response.DeleteStreamResult;
 import com.huaweicloud.dis.iface.stream.response.DescribeStreamResult;
+import com.huaweicloud.dis.iface.stream.response.ListStreamsResult;
 import com.huaweicloud.dis.iface.stream.response.UpdatePartitionCountResult;
 
 /**
@@ -95,6 +105,39 @@ public interface DISAsync extends DIS
      */
     java.util.concurrent.Future<GetRecordsResult> getRecordsAsync(GetRecordsRequest getRecordsParam, AsyncHandler<GetRecordsResult> asyncHandler);
 
+    /**
+     * <p>
+     * 创建流。
+     * </p>
+     * 
+     * @param createStreamRequest 创建流的请求参数
+     * @return 包含创建流响应结果的 JAVA Future 对象
+     */
+    Future<CreateStreamResult> createStreamAsync(CreateStreamRequest createStreamRequest);
+    Future<CreateStreamResult> createStreamAsync(CreateStreamRequest createStreamRequest, AsyncHandler<CreateStreamResult> asyncHandler);
+    
+    /**
+     * <p>
+     * 删除流
+     * </p>
+     * 
+     * @param deleteStreamRequest 删除流的请求参数
+     * @return 包含删除流响应结果的 JAVA Future 对象
+     */
+    Future<DeleteStreamResult> deleteStreamAsync(DeleteStreamRequest deleteStreamRequest);
+    Future<DeleteStreamResult> deleteStreamAsync(DeleteStreamRequest deleteStreamRequest, AsyncHandler<DeleteStreamResult> asyncHandler);
+    
+    /**
+     * <p>
+     * 查询流列表
+     * </p>
+     * 
+     * @param listStreamsRequest 查询流列表的请求参数
+     * @return 包含流列表响应结果的 JAVA Future 对象
+     */
+    Future<ListStreamsResult> listStreamsAsync(ListStreamsRequest listStreamsRequest);
+    Future<ListStreamsResult> listStreamsAsync(ListStreamsRequest listStreamsRequest, AsyncHandler<ListStreamsResult> asyncHandler);
+    
     /**
      * <p>
      * 查询指定通道详情。
@@ -179,7 +222,54 @@ public interface DISAsync extends DIS
      */
     java.util.concurrent.Future<CommitCheckpointResult> commitCheckpointAsync(
         CommitCheckpointRequest commitCheckpointRequest, AsyncHandler<CommitCheckpointResult> asyncHandler);
-    
+
+
+    /**
+     * <p>
+     * 刪除Checkpoint
+     * </p>
+     *
+     * @param deleteCheckpointRequest 刪除Checkpoint
+     * @return 包含提交Checkpoint结果的 JAVA Future 对象
+     */
+    java.util.concurrent.Future<DeleteCheckpointResult> deleteCheckpointAsync(
+            DeleteCheckpointRequest deleteCheckpointRequest);
+
+    /**
+     * <p>
+     * 刪除Checkpoint
+     * </p>
+     *
+     * @param deleteCheckpointRequest 刪除Checkpoint
+     * @param asyncHandler 异步回调处理程序。 用户可以提供接口中回调方法的实现，以接收操作成功或失败的通知。
+     * @return 包含刪除Checkpoint结果的 JAVA Future 对象
+     */
+    java.util.concurrent.Future<DeleteCheckpointResult> deleteCheckpointAsync(
+            DeleteCheckpointRequest deleteCheckpointRequest, AsyncHandler<DeleteCheckpointResult> asyncHandler);
+
+    /**
+     * <p>
+     * get stream consuming state
+     * </p>
+     *
+     * @param listStreamConsumingStateRequest 请求参数
+     * @return 包含stream consuming state 结果的 JAVA Future 对象
+     */
+    java.util.concurrent.Future<ListStreamConsumingStateResult> listStreamConsumingStateAsync(
+            ListStreamConsumingStateRequest listStreamConsumingStateRequest);
+
+    /**
+     * <p>
+     * get stream consuming state
+     * </p>
+     *
+     * @param listStreamConsumingStateRequest 请求参数
+     * @param asyncHandler 异步回调处理程序。 用户可以提供接口中回调方法的实现，以接收操作成功或失败的通知。
+     * @return 包含stream consuming state 结果的 JAVA Future 对象
+     */
+    java.util.concurrent.Future<ListStreamConsumingStateResult> listStreamConsumingStateAsync(
+            ListStreamConsumingStateRequest listStreamConsumingStateRequest, AsyncHandler<ListStreamConsumingStateResult> asyncHandler);
+
     /**
      * <p>
      * 获取Checkpoint
@@ -275,7 +365,7 @@ public interface DISAsync extends DIS
      * @param listAppsRequest list app的参数
      * @return 包含没有返回类型的 JAVA Future 对象，如果get不报错则表明获取APP信息列表成功
      */
-    java.util.concurrent.Future<ListAppsResult> listAppAsync(ListAppsRequest listAppsRequest);
+    java.util.concurrent.Future<ListAppsResult> listAppsAsync(ListAppsRequest listAppsRequest);
 
     /**
      * <p>
@@ -286,7 +376,7 @@ public interface DISAsync extends DIS
      * @param asyncHandler 异步回调处理程序。 用户可以提供接口中回调方法的实现，以接收操作成功或失败的通知。
      * @return 包含没有返回类型的 JAVA Future 对象，如果get不报错则表明获取APP信息列表成功
      */
-    java.util.concurrent.Future<ListAppsResult> listAppAsync(ListAppsRequest listAppsRequest, AsyncHandler<ListAppsResult> asyncHandler);
+    java.util.concurrent.Future<ListAppsResult> listAppsAsync(ListAppsRequest listAppsRequest, AsyncHandler<ListAppsResult> asyncHandler);
 
 
     /**

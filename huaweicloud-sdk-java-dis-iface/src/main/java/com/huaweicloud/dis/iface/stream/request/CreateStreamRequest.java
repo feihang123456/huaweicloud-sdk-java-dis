@@ -86,10 +86,18 @@ public class CreateStreamRequest
     // @JsonDeserialize(using = ForceStringDeserializer.class)
     @JsonProperty("stream_type")
     private String streamType;
-    
-    // 数据的类型，目前支持：BLOB、JSON格式
+
+    // 数据的类型，目前支持：BLOB、JSON、CSV格式
     @JsonProperty("data_type")
     private String dataType;
+
+    /**
+     * <p>
+     * 用户JOSN、CSV格式数据schema,用avro shema描述
+     * </p>
+     */
+    @JsonProperty("data_schema")
+    private String dataSchema;
 
     /**
      * 数据保留时长，单位为小时，默认为24小时
@@ -97,6 +105,14 @@ public class CreateStreamRequest
     // @JsonDeserialize(using = ForceIntegerDeserializer.class)
     @JsonProperty("data_duration")
     private Integer dataDuration;
+    
+    /**
+     * <p>
+     * 通道标签列表
+     * </p>
+     */
+    @JsonProperty("tags")
+    private List<Tag> tags;
     
     public void setStreamName(String streamName)
     {
@@ -220,8 +236,24 @@ public class CreateStreamRequest
     {
         this.dataType = dataType;
     }
-    
-    @Override
+
+    public String getDataSchema() {
+        return dataSchema;
+    }
+
+    public void setDataSchema(String dataSchema) {
+        this.dataSchema = dataSchema;
+    }
+
+    public List<Tag> getTags() {
+		return tags;
+	}
+
+	public void setTags(List<Tag> tags) {
+		this.tags = tags;
+	}
+
+	@Override
     public String toString()
     {
         StringBuilder sb = new StringBuilder();

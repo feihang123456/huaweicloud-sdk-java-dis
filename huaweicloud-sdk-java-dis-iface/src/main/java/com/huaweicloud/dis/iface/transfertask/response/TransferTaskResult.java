@@ -28,7 +28,8 @@ public class TransferTaskResult {
      * The destination type of the delivery task. For Example, OBS.
      * </p>
      */
-    private StreamDestinationType type;
+    @JsonProperty("destination_type")
+    private StreamDestinationType destinationType;
 
     /**
      * <p>
@@ -51,8 +52,8 @@ public class TransferTaskResult {
      * The transfer state of the delivery task.
      * </p>
      */
-    @JsonProperty("transfer_state")
-    private String transferState;
+    @JsonProperty("state")
+    private String state;
 
     /**
      * <p>
@@ -62,20 +63,12 @@ public class TransferTaskResult {
     @JsonProperty("last_transfer_timestamp")
     private long lastTransferTimeStamp;
 
-    /**
-     * <p>
-     * The lastest partition transfer offsets of the transfer task.
-     * </p>
-     */
-    @JsonProperty("last_partitions_transfer_offset")
-    private String lastPartitionsTransferOffset;
-
-    public StreamDestinationType getType() {
-        return type;
+    public StreamDestinationType getDestinationType() {
+        return destinationType;
     }
 
-    public void setType(StreamDestinationType type) {
-        this.type = type;
+    public void setDestinationType(StreamDestinationType destinationType) {
+        this.destinationType = destinationType;
     }
 
     public String getTransferTaskName() {
@@ -102,19 +95,11 @@ public class TransferTaskResult {
         this.lastTransferTimeStamp = lastTransferTimeStamp;
     }
 
-    public String getLastPartitionsTransferOffset() {
-        return lastPartitionsTransferOffset;
+    public String getState() {
+        return state;
     }
 
-    public void setLastPartitionsTransferOffset(String lastPartitionsTransferOffset) {
-        this.lastPartitionsTransferOffset = lastPartitionsTransferOffset;
-    }
-
-    public String getTransferState() {
-        return transferState;
-    }
-
-    public void setTransferState(String transferState) {
-        this.transferState = transferState;
+    public void setState(String state) {
+        this.state = state;
     }
 }

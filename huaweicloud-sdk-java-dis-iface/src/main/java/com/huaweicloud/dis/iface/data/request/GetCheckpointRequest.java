@@ -74,9 +74,9 @@ public class GetCheckpointRequest
         return appName;
     }
 
-    public void setAppId(String appId)
+    public void setAppName(String appName)
     {
-        this.appName = appId;
+        this.appName = appName;
     }
 
     public Long getTimeStamp()
@@ -92,7 +92,7 @@ public class GetCheckpointRequest
     @Override
     public String toString()
     {
-        return "GetIteratorParam [streamName=" + streamName + ", shardId=" + partitionId + ", checkpointType="
-                + checkpointType + ", appId=" + appName  + ", timeStamp=" + timeStamp +  "]";
+        return "GetCheckpointParam [streamName=" + streamName + ", shardId=" + partitionId + ", checkpointType="
+                + checkpointType + ", appName=" + appName  + ", timeStamp=" + timeStamp +  "]";
     }
 }

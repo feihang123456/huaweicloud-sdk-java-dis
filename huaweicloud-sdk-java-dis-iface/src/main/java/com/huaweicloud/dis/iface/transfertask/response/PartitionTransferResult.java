@@ -29,8 +29,8 @@ public class PartitionTransferResult {
      * The transfer state of the delivery task.
      * </p>
      */
-    @JsonProperty("transfer_state")
-    private String transferState;
+    @JsonProperty("state")
+    private String state;
 
     /**
      * <p>
@@ -63,12 +63,12 @@ public class PartitionTransferResult {
         this.partitionId = partitionId;
     }
 
-    public String getTransferState() {
-        return transferState;
+    public String getState() {
+        return state;
     }
 
-    public void setTransferState(String transferState) {
-        this.transferState = transferState;
+    public void setState(String state) {
+        this.state = state;
     }
 
     public long getLastTransferTimeStamp() {
