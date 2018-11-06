@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.huaweicloud.dis.iface.data.request.StreamType;
+import com.huaweicloud.dis.iface.stream.request.CSVProperties;
 import com.huaweicloud.dis.iface.stream.request.Tag;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -151,6 +152,22 @@ public class DescribeStreamResult
      */
     @JsonProperty("data_schema")
     private String dataSchema;
+
+    /**
+     * <p>
+     * 数据的压缩类型，目前支持：不压缩, snappy, gzip, zip, lz4
+     * </p>
+     */
+    @JsonProperty("compression_type")
+    private String compressionType;
+
+    /**
+     * <p>
+     * CSV格式数据的描述，如delimiter
+     * </p>
+     */
+    @JsonProperty("csv_properties")
+    private CSVProperties csvProperties;
 
     /**
      * <p>
@@ -376,7 +393,23 @@ public class DescribeStreamResult
 		this.tags = tags;
 	}
 
-	@Override
+    public String getCompressionType() {
+        return compressionType;
+    }
+
+    public void setCompressionType(String compressionType) {
+        this.compressionType = compressionType;
+    }
+
+    public CSVProperties getCsvProperties() {
+        return csvProperties;
+    }
+
+    public void setCsvProperties(CSVProperties csvProperties) {
+        this.csvProperties = csvProperties;
+    }
+
+    @Override
     public String toString()
     {
         return "DescribeStreamResult [streamId=" + streamId + ", streamName=" + streamName + ", createTime="
